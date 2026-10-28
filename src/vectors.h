@@ -57,7 +57,7 @@ static inline Vec4 sub4(Vec4 a, Vec4 b)
 
 static inline float edge(Vec2 a, Vec2 b, Vec2 c)
 {
-    return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x);
+    return (c.y - a.y) * (b.x - a.x) - (c.x - a.x) * (b.y - a.y);
 }
 
 static inline float dot3(Vec3 a, Vec3 b)

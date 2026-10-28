@@ -18,6 +18,8 @@
 #include "misc.h"
 #include "scenes.h"
 #include "matrices.h"
+#include "uniforms.h"
+#include "glfw_utils.h"
 
 int main(int argc, char *argv[])
 {
@@ -27,17 +29,13 @@ int main(int argc, char *argv[])
 
     Mesh model1 = load_obj("resources/Bunny.obj");
     if (model1.vert_count <= 0 || model1.tri_count <= 0)
-    {
-        printf("Couldn't read file: %s", argv[3]);
         return -1;
-    }
     mesh_normalize(model1);
     mesh_compute_normals(&model1);
 
     Mesh model2 = load_obj("resources/Chicken_01.obj");
     if (model2.vert_count <= 0 || model2.tri_count <= 0)
     {
-        printf("Couldn't read file: %s", argv[3]);
         free_mesh(model2);
         return -1;
     }
@@ -107,8 +105,8 @@ int main(int argc, char *argv[])
         if (scene.objects[i].mesh->vert_count > max_verts)
             max_verts = scene.objects[i].mesh->vert_count;
     }
-    Vec4 *scratch_clip = malloc((size_t)max_verts * sizeof(Vec4));
-    Vec3 *scratch_norm = malloc((size_t)max_verts * sizeof(Vec3));
+    Vec4 *scratch_clip = malloc(max_verts * sizeof(Vec4));
+    Vec3 *scratch_norm = malloc(max_verts * sizeof(Vec3));
 
     float fov_y  = (float)M_PI / 3.f;
     float aspect = (float)fb_width / fb_height;
@@ -138,31 +136,36 @@ int main(int argc, char *argv[])
             }
         }
 
-        Mat4x4 proj = perspective_m4x4(fov_y, aspect, .1f, 100.f);
-        Mat4x4 view = look_at_m4x4(
-            make_v3(0.f, 0.f, 4.f),
-            make_v3(0.f, 0.f, 0.f),
-            make_v3(0.f, 1.f, 0.f));
+        const float near = .1f, far = 100.f;
 
+        Mat4x4 view = look_at_m4x4(
+            make_v3(0.f, 0.f, 1.5f),
+            make_v3(0.f, 0.f, 0.f),
+            make_v3(0.f, 1.f, 0.f)
+        );
         Mat3x3 view3 = {
             view.m[0][0], view.m[0][1], view.m[0][2],
             view.m[1][0], view.m[1][1], view.m[1][2],
             view.m[2][0], view.m[2][1], view.m[2][2],
         };
-        Vec3 l_view = normalized3(mul_m3x3_v3(view3, l_world));
+
+        Uniforms uni = {
+            .proj = perspective_m4x4(fov_y, aspect, near, far),
+            .view = view,
+            .l_view = normalized3(mul_m3x3_v3(view3, l_world)),
+            .near = near, .far = far,
+            .cull_backfaces = true
+        };
+
+        uni.vp = mul4x4(uni.proj, uni.view);
 
         scene_draw(
             pixels, depth, fb_width, fb_height,
-            &scene, view, proj, l_view,
+            &scene, &uni,
             scratch_clip, scratch_norm
         );
 
-        for (size_t i = 0; i < pixel_count; i++)
-        {
-            pixels[i << 2] = powf(pixels[i << 2] / 255.f, 1.f / 2.2f) * 255.f;
-            pixels[(i << 2) + 1] = powf(pixels[(i << 2) + 1] / 255.f, 1.f / 2.2f) * 255.f;
-            pixels[(i << 2) + 2] = powf(pixels[(i << 2) + 2] / 255.f, 1.f / 2.2f) * 255.f;
-        }
+        gamma_correct(pixels, pixel_count);
 
         glDrawPixels(fb_width, fb_height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
         glfwSwapBuffers(window);

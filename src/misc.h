@@ -3,20 +3,9 @@
 
 #include <stdio.h>
 #include <math.h>
-#include <GLFW/glfw3.h>
+#include <inttypes.h>
 
 struct vec3;
-
-static inline void glfw_error_callback(int error, const char *description)
-{
-    fprintf(stderr, "GLFW error %d: %s\n", error, description);
-}
-
-static inline void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
-{
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, GLFW_TRUE);
-}
 
 static inline float clamp01(float x)
 {
@@ -45,7 +34,6 @@ static inline uint8_t to_srgb8(float x)
     return lut[(int)(x * 1023.f + .5f)] * 255.f + .5f;
 }
 
-// Цвет радуги по оттенку hue из [0, 1)
 static inline void hue_to_rgb(float hue, float rgb[3])
 {
     float h = hue * 6.f;

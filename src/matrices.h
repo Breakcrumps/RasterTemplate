@@ -42,7 +42,7 @@ static inline Vec4 mul_m4x4_v4(Mat4x4 mat, Vec4 vec)
     };
 }
 
-static Mat3x3 mult3x3(Mat3x3 m1, Mat3x3 m2)
+static Mat3x3 mul3x3(Mat3x3 m1, Mat3x3 m2)
 {
     float m00 = m1.m[0][0] * m2.m[0][0] + m1.m[0][1] * m2.m[1][0] + m1.m[0][2] * m2.m[2][0];
     float m01 = m1.m[0][0] * m2.m[0][1] + m1.m[0][1] * m2.m[1][1] + m1.m[0][2] * m2.m[2][1];
@@ -59,7 +59,7 @@ static Mat3x3 mult3x3(Mat3x3 m1, Mat3x3 m2)
         m20, m21, m22
     };
 }
-static Mat4x4 mult4x4(Mat4x4 m1, Mat4x4 m2)
+static Mat4x4 mul4x4(Mat4x4 m1, Mat4x4 m2)
 {
     float m00 = m1.m[0][0] * m2.m[0][0] + m1.m[0][1] * m2.m[1][0] + m1.m[0][2] * m2.m[2][0] + m1.m[0][3] * m2.m[3][0];
     float m01 = m1.m[0][0] * m2.m[0][1] + m1.m[0][1] * m2.m[1][1] + m1.m[0][2] * m2.m[2][1] + m1.m[0][3] * m2.m[3][1];
@@ -293,7 +293,8 @@ static inline Mat4x4 look_at_m4x4(Vec3 eyepos, Vec3 targetpos, Vec3 updir)
     };
 }
 
-static inline Mat4x4 perspective_m4x4(float fov_y, float aspect, float near, float far) {
+static inline Mat4x4 perspective_m4x4(float fov_y, float aspect, float near, float far)
+{
     if (near <= 0.f || far <= near || aspect <= 0.f)
         return (Mat4x4){
             1., 0., 0., 0.,
@@ -316,7 +317,7 @@ static inline Mat4x4 trs_m4x4(float angle, Axis axis, Vec3 translate, float scal
     Mat4x4 r = rot_m4x4(angle, axis);
     Mat4x4 s = scale_m4x4(scale, scale, scale, 1.f);
     Mat4x4 t = translate_m4x4(translate.x, translate.y, translate.z);
-    return mult4x4(t, mult4x4(r, s));
+    return mul4x4(t, mul4x4(r, s));
 }
 
 #endif

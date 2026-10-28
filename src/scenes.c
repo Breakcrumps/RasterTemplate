@@ -13,9 +13,8 @@ void draw_obj(
 
     for (int i = 0; i < obj->instance_count; i++)
     {
-        Mat4x4 m = obj->instances[i];
-        Mat4x4 mv = mult4x4(uni->view, m);
-        Mat4x4 mvp = mult4x4(uni->proj, mv);
+        Mat4x4 mv = mul4x4(uni->view, obj->instances[i]);
+        Mat4x4 mvp = mul4x4(uni->vp, obj->instances[i]);
 
         Mat3x3 mv3 = {
             mv.m[0][0], mv.m[0][1], mv.m[0][2],
@@ -37,6 +36,8 @@ void draw_obj(
                 : make_v3(0.f, 0.f, 1.f);
         }
 
+        const float *tex_used = mesh->tcs ? obj->tex : NULL;
+
         for (int t = 0; t < mesh->tri_count; t++)
         {
             int i0 = mesh->indices[3 * t];
@@ -49,20 +50,25 @@ void draw_obj(
             if (c0.w <= uni->near || c1.w <= uni->near || c2.w <= uni->near)
                 continue;
 
-            Vec2 s0 = { (c0.x / c0.w * .5f + .5f) * fb_width,
-                        (c0.y / c0.w * .5f + .5f) * fb_height };
-            Vec2 s1 = { (c1.x / c1.w * .5f + .5f) * fb_width,
-                        (c1.y / c1.w * .5f + .5f) * fb_height };
-            Vec2 s2 = { (c2.x / c2.w * .5f + .5f) * fb_width,
-                        (c2.y / c2.w * .5f + .5f) * fb_height };
+            Vec2 s0 = {
+                (c0.x / c0.w * .5f + .5f) * fb_width,
+                (c0.y / c0.w * .5f + .5f) * fb_height
+            };
+            Vec2 s1 = {
+                (c1.x / c1.w * .5f + .5f) * fb_width,
+                (c1.y / c1.w * .5f + .5f) * fb_height
+            };
+            Vec2 s2 = {
+                (c2.x / c2.w * .5f + .5f) * fb_width,
+                (c2.y / c2.w * .5f + .5f) * fb_height
+            };
 
             Vec2 uv0, uv1, uv2;
-            if (!!mesh->tcs) {
+            if (!!mesh->tcs)
+            {
                 uv0 = mesh->tcs[i0];
                 uv1 = mesh->tcs[i1];
                 uv2 = mesh->tcs[i2];
-            } else {
-                uv0 = uv1 = uv2 = make_v2(0.f, 0.f);
             }
 
             draw_tri_tex(
@@ -72,8 +78,8 @@ void draw_obj(
                 uv0, uv1, uv2,
                 c0.z / c0.w, c1.z / c1.w, c2.z / c2.w,
                 1.f / c0.w, 1.f / c1.w, 1.f / c2.w,
-                obj->fallback_albedo, uni->light_pos,
-                obj->tex, obj->tex_w, obj->tex_h,
+                obj->fallback_albedo, uni->l_view,
+                tex_used, obj->tex_w, obj->tex_h,
                 uni->cull_backfaces
             );
         }

@@ -30,17 +30,19 @@ void tri_mode(
 
 void task2_mode(uint8_t *pixels, int fb_width, int fb_height, double now)
 {
-    float fov_y = (float)M_PI / 3.f;
-    float aspect = (float)fb_width / fb_height;
+    const float fov_y = (float)M_PI / 3.f;
+    const float aspect = (float)fb_width / fb_height;
 
-    Mat4x4 p = perspective_m4x4(fov_y, aspect, .1f, 100.f);
+    const float near = .1f, far = 100.f;
+
+    Mat4x4 p = perspective_m4x4(fov_y, aspect, near, far);
     Mat4x4 v = look_at_m4x4(
         make_v3(0.f, 0.f, 3.f),
         make_v3(0.f, 0.f, 0.f),
         make_v3(0.f, 1.f, 0.f)
     );
-    Mat4x4 m = mult4x4(rot_m4x4(now, Y), rot_m4x4(now * .7f, X));
-    Mat4x4 mvp = mult4x4(p, mult4x4(v, m));
+    Mat4x4 m = mul4x4(rot_m4x4(now, Y), rot_m4x4(now * .7f, X));
+    Mat4x4 mvp = mul4x4(p, mul4x4(v, m));
 
     static Vec3 cube[8] = {
         { -.7f, -.7f, -.7f}, { .7f, -.7f, -.7f },
@@ -62,7 +64,7 @@ void task2_mode(uint8_t *pixels, int fb_width, int fb_height, double now)
     for (int i = 0; i < 8; i++)
     {
         clip[i] = mul_m4x4_v4(mvp, make_v4(cube[i].x, cube[i].y, cube[i].z, 1.f));
-        if (clip[i].w <= 1e-6f)
+        if (clip[i].w <= near)
             return;
         float inv_w = 1.f / clip[i].w;
         screen[i].x = (clip[i].x * inv_w * .5f + .5f) * fb_width;
@@ -102,11 +104,13 @@ void task2_mode(uint8_t *pixels, int fb_width, int fb_height, double now)
     for (int k = 0; k < 12; k++)
     {
         int i = order[k].f;
-        draw_tri(pixels, fb_width, fb_height,
-                 screen[faces[i][0]],
-                 screen[faces[i][1]],
-                 screen[faces[i][2]],
-                 r, g, b);
+        draw_tri(
+            pixels, fb_width, fb_height,
+            screen[faces[i][0]],
+            screen[faces[i][1]],
+            screen[faces[i][2]],
+            r, g, b
+        );
     }
 }
 
@@ -115,17 +119,19 @@ void mode_3d_mesh(
     Mesh mesh, double now
 )
 {
-    float fov_y = (float)M_PI / 3.f;
-    float aspect = (float)fb_width / fb_height;
+    const float fov_y = (float)M_PI / 3.f;
+    const float aspect = (float)fb_width / fb_height;
 
-    Mat4x4 p = perspective_m4x4(fov_y, aspect, .1f, 100.f);
+    const float near = .1f, far = 100.f;
+
+    Mat4x4 p = perspective_m4x4(fov_y, aspect, near, far);
     Mat4x4 view = look_at_m4x4(
         make_v3(0.f, 0.f, 2.f),
         make_v3(0.f, 0.f, 0.f),
         make_v3(0.f, 1.f, 0.f)
     );
     Mat4x4 m = rot_m4x4(now, Y);
-    Mat4x4 mvp = mult4x4(p, mult4x4(view, m));
+    Mat4x4 mvp = mul4x4(p, mul4x4(view, m));
 
     for (int i = 0; i < mesh.tri_count; i++)
     {
@@ -137,7 +143,7 @@ void mode_3d_mesh(
         Vec4 c1 = mul_m4x4_v4(mvp, make_v4(p1.x, p1.y, p1.z, 1.f));
         Vec4 c2 = mul_m4x4_v4(mvp, make_v4(p2.x, p2.y, p2.z, 1.f));
 
-        if (c0.w <= 1e-6f || c1.w <= 1e-6f || c2.w <= 1e-6f)
+        if (c0.w <= near || c1.w <= near || c2.w <= near)
             continue;
 
         Vec2 s0 = { (c0.x / c0.w * .5f + .5f) * fb_width,
@@ -163,17 +169,19 @@ void mode_lambert(
     uint8_t *pixels, float *depth, int fb_width, int fb_height,
     Mesh mesh, double now)
 {
-    float fov_y = (float)M_PI / 3.f;
-    float aspect = (float)fb_width / fb_height;
+    const float fov_y = (float)M_PI / 3.f;
+    const float aspect = (float)fb_width / fb_height;
 
-    Mat4x4 p = perspective_m4x4(fov_y, aspect, .1f, 100.f);
+    const float near = .1f, far = 100.f;
+
+    Mat4x4 p = perspective_m4x4(fov_y, aspect, near, far);
     Mat4x4 v = look_at_m4x4(
         make_v3(0.f, 0.f, 2.f),
         make_v3(0.f, 0.f, 0.f),
         make_v3(0.f, 1.f, 0.f));
     Mat4x4 m = rot_m4x4(now, Y);
-    Mat4x4 mv = mult4x4(v, m);
-    Mat4x4 mvp = mult4x4(p, mv);
+    Mat4x4 mv = mul4x4(v, m);
+    Mat4x4 mvp = mul4x4(p, mv);
 
     Mat3x3 mv3 = {
         mv.m[0][0], mv.m[0][1], mv.m[0][2],
@@ -196,7 +204,7 @@ void mode_lambert(
     };
     Vec3 l_view = normalized3(mul_m3x3_v3(view3, l_world));
 
-    Vec3 albedo = make_v3(0.85f, 0.8f, 0.72f);
+    Vec3 albedo = make_v3(.85f, .8f, .72f);
 
     for (int i = 0; i < mesh.tri_count; i++)
     {
@@ -212,7 +220,7 @@ void mode_lambert(
         Vec4 c1 = mul_m4x4_v4(mvp, make_v4(p1.x, p1.y, p1.z, 1.f));
         Vec4 c2 = mul_m4x4_v4(mvp, make_v4(p2.x, p2.y, p2.z, 1.f));
 
-        if (c0.w <= 1e-6f || c1.w <= 1e-6f || c2.w <= 1e-6f)
+        if (c0.w <= near || c1.w <= near || c2.w <= near)
             continue;
 
         Vec2 s0 = { (c0.x / c0.w * 0.5f + 0.5f) * fb_width,
@@ -244,17 +252,19 @@ void mode_tex(
     Mesh mesh, double now,
     const float *tex, int tex_w, int tex_h)
 {
-    float fov_y = (float)M_PI / 3.f;
-    float aspect = (float)fb_width / fb_height;
+    const float fov_y = (float)M_PI / 3.f;
+    const float aspect = (float)fb_width / fb_height;
 
-    Mat4x4 p = perspective_m4x4(fov_y, aspect, .1f, 100.f);
+    const float near = .1f, far = 100.f;
+
+    Mat4x4 p = perspective_m4x4(fov_y, aspect, near, far);
     Mat4x4 v = look_at_m4x4(
         make_v3(0.f, 0.f, 2.f),
         make_v3(0.f, 0.f, 0.f),
         make_v3(0.f, 1.f, 0.f));
     Mat4x4 m = rot_m4x4(now, Y);
-    Mat4x4 mv = mult4x4(v, m);
-    Mat4x4 mvp = mult4x4(p, mv);
+    Mat4x4 mv = mul4x4(v, m);
+    Mat4x4 mvp = mul4x4(p, mv);
 
     Mat3x3 mv3 = {
         mv.m[0][0], mv.m[0][1], mv.m[0][2],
@@ -295,7 +305,7 @@ void mode_tex(
         Vec4 c1 = mul_m4x4_v4(mvp, make_v4(p1.x, p1.y, p1.z, 1.f));
         Vec4 c2 = mul_m4x4_v4(mvp, make_v4(p2.x, p2.y, p2.z, 1.f));
 
-        if (c0.w <= 1e-6f || c1.w <= 1e-6f || c2.w <= 1e-6f)
+        if (c0.w <= near || c1.w <= near || c2.w <= near)
             continue;
 
         Vec2 s0 = { (c0.x / c0.w * .5f + .5f) * fb_width,

@@ -64,7 +64,7 @@ void draw_tri_depth(
     if (fabsf(area) < 1e-6f)
         return;
 
-    if (cull_backfaces && area > 0.0f)
+    if (cull_backfaces && area < 0.f)
         return;
 
     int min_x = fminf(v1.x, fminf(v2.x, v3.x));
@@ -122,7 +122,7 @@ void draw_tri_lambert(
     float area = edge(s0, s1, s2);
     if (fabsf(area) < 1e-6f)
         return;
-    if (cull_backfaces && area > 0.f)
+    if (cull_backfaces && area < 0.f)
         return;
 
     int min_x = fminf(s0.x, fminf(s1.x, s2.x));
@@ -199,7 +199,7 @@ void draw_tri_tex(
     float area = edge(s0, s1, s2);
     if (fabsf(area) < 1e-6f)
         return;
-    if (cull_backfaces && area > 0.f)
+    if (cull_backfaces && area < 0.f)
         return;
 
     int min_x = fminf(s0.x, fminf(s1.x, s2.x));
@@ -218,8 +218,8 @@ void draw_tri_tex(
         return;
 
     float inv_area = 1.f / area;
-    float ambient = .15f;
-    float diffuse = .85f;
+    float ambient = .05f;
+    float diffuse = .95f;
 
     for (int y = min_y; y <= max_y; y++)
     {
