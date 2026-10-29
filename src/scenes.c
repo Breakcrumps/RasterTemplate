@@ -2,6 +2,8 @@
 
 #include "draw_tri.h"
 #include "uniforms.h"
+#include "vertex.h"
+#include "texture.h"
 
 void draw_obj(
     uint8_t *pixels, float *depth, int fb_width, int fb_height,
@@ -36,51 +38,64 @@ void draw_obj(
                 : make_v3(0.f, 0.f, 1.f);
         }
 
-        const float *tex_used = mesh->tcs ? obj->tex : NULL;
+        Texture tex = {
+            .pixels = mesh->tcs ? obj->tex.pixels : NULL,
+            .w = obj->tex.w, .h = obj->tex.h
+        };
 
         for (int t = 0; t < mesh->tri_count; t++)
         {
-            int i0 = mesh->indices[3 * t];
-            int i1 = mesh->indices[3 * t + 1];
-            int i2 = mesh->indices[3 * t + 2];
+            int i1 = mesh->indices[3 * t];
+            int i2 = mesh->indices[3 * t + 1];
+            int i3 = mesh->indices[3 * t + 2];
 
-            Vec4 c0 = scratch_clip[i0];
             Vec4 c1 = scratch_clip[i1];
             Vec4 c2 = scratch_clip[i2];
-            if (c0.w <= uni->near || c1.w <= uni->near || c2.w <= uni->near)
+            Vec4 c3 = scratch_clip[i3];
+            if (c1.w <= uni->near || c2.w <= uni->near || c3.w <= uni->near)
                 continue;
 
-            Vec2 s0 = {
-                (c0.x / c0.w * .5f + .5f) * fb_width,
-                (c0.y / c0.w * .5f + .5f) * fb_height
+            float invw1 = 1.f / c1.w;
+            float invw2 = 1.f / c2.w;
+            float invw3 = 1.f / c3.w;
+
+            Vertex v1 = {
+                .invw = invw1, .n = scratch_norm[i1],
+                .scr = (Vec2){
+                    (c1.x * invw1 * .5f + .5f) * fb_width,
+                    (c1.y * invw1 * .5f + .5f) * fb_height
+                },
+                .depth = c1.z * invw1
             };
-            Vec2 s1 = {
-                (c1.x / c1.w * .5f + .5f) * fb_width,
-                (c1.y / c1.w * .5f + .5f) * fb_height
+            Vertex v2 = {
+                .invw = invw2, .n = scratch_norm[i2],
+                .scr = (Vec2){
+                    (c2.x * invw2 * .5f + .5f) * fb_width,
+                    (c2.y * invw2 * .5f + .5f) * fb_height
+                },
+                .depth = c2.z * invw2
             };
-            Vec2 s2 = {
-                (c2.x / c2.w * .5f + .5f) * fb_width,
-                (c2.y / c2.w * .5f + .5f) * fb_height
+            Vertex v3 = {
+                .invw = invw3, .n = scratch_norm[i3],
+                .scr = (Vec2){
+                    (c3.x * invw3 * .5f + .5f) * fb_width,
+                    (c3.y * invw3 * .5f + .5f) * fb_height
+                },
+                .depth = c3.z * invw3
             };
 
-            Vec2 uv0, uv1, uv2;
-            if (!!mesh->tcs)
+            if (mesh->tcs)
             {
-                uv0 = mesh->tcs[i0];
-                uv1 = mesh->tcs[i1];
-                uv2 = mesh->tcs[i2];
+                v1.uv = mesh->tcs[i1];
+                v2.uv = mesh->tcs[i2];
+                v3.uv = mesh->tcs[i3];
             }
 
             draw_tri_tex(
                 pixels, depth, fb_width, fb_height,
-                s0, s1, s2,
-                scratch_norm[i0], scratch_norm[i1], scratch_norm[i2],
-                uv0, uv1, uv2,
-                c0.z / c0.w, c1.z / c1.w, c2.z / c2.w,
-                1.f / c0.w, 1.f / c1.w, 1.f / c2.w,
-                obj->fallback_albedo, uni->l_view,
-                tex_used, obj->tex_w, obj->tex_h,
-                uni->cull_backfaces
+                v1, v2, v3,
+                obj->fallback_albedo, uni->l_clip,
+                tex, uni->cull_backfaces
             );
         }
     }

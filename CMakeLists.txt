@@ -41,15 +41,13 @@ if(OpenMP_C_FOUND)
 endif()
 
 # --- консольная программа: меш + картинка -> PNG ---------------------------
-add_executable(
-    main_render
+add_executable(main_render
     src/main_render.c
     src/scenes.c
     src/draw_tri.c
     src/misc.c
-    src/modes.c
 )
-target_link_libraries(main_render PRIVATE raster_utils)
+target_link_libraries(main_render PRIVATE raster_utils glfw OpenGL::GL)
 
 # --- программа с окном (нужен GLFW) ---------------------------------------
 set(OpenGL_GL_PREFERENCE GLVND)
@@ -80,7 +78,6 @@ if(glfw3_FOUND AND OpenGL_FOUND)
         src/scenes.c
         src/draw_tri.c
         src/misc.c
-        src/modes.c
     )
     target_link_libraries(main_app PRIVATE raster_utils glfw OpenGL::GL)
 else()

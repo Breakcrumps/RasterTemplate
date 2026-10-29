@@ -297,19 +297,19 @@ static inline Mat4x4 perspective_m4x4(float fov_y, float aspect, float near, flo
 {
     if (near <= 0.f || far <= near || aspect <= 0.f)
         return (Mat4x4){
-            1., 0., 0., 0.,
-            0., 1., 0., 0.,
-            0., 0., 1., 0.,
-            0., 0., 0., 1.
+            1.f, 0.f, 0.f, 0.f,
+            0.f, 1.f, 0.f, 0.f,
+            0.f, 0.f, 1.f, 0.f,
+            0.f, 0.f, 0.f, 1.f
         };
     float f = 1.f / tanf(fov_y * .5f);
     float nf = 1.f / (near - far);
-    return (Mat4x4){{
+    return (Mat4x4){
         f / aspect, 0, 0, 0,
         0, f, 0, 0,
         0, 0, (far + near) * nf, 2 * far * near * nf,
         0, 0, -1, 0,
-    }};
+    };
 }
 
 static inline Mat4x4 trs_m4x4(float angle, Axis axis, Vec3 translate, float scale)

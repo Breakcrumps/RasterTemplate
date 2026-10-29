@@ -49,7 +49,7 @@ void depth_to_grayscale(uint8_t *pixels, const float *depth, size_t pixel_count)
     float zmin = FLT_MAX, zmax = FLT_MIN;
     for (size_t i = 0; i < pixel_count; i++)
     {
-        if (depth[i] > 1e29f)
+        if (depth[i] == FLT_MAX)
             continue;
         if (depth[i] < zmin)
             zmin = depth[i];
@@ -62,8 +62,10 @@ void depth_to_grayscale(uint8_t *pixels, const float *depth, size_t pixel_count)
 
     for (size_t i = 0; i < pixel_count; i++)
     {
+        if (depth[i] == FLT_MAX)
+            continue;
         float t = (depth[i] - zmin) * inv_range;
-        uint8_t g = (1.f - t) * 255.f + .5f;
+        uint8_t g = (1.f - t) * 255.f;
         pixels[i << 2] = g;
         pixels[(i << 2) + 1] = g;
         pixels[(i << 2) + 2] = g;
