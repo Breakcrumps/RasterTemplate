@@ -6,10 +6,10 @@
 
 typedef struct uniforms
 {
-  Mat4x4 view, proj, vp;
-  float near, far;
-  Vec3 l_clip;
-  bool cull_backfaces;
+    Mat4x4 view, proj, vp;
+    float near, far;
+    Vec3 l_clip;
+    bool cull_backfaces;
 } Uniforms;
 
 #endif

@@ -49,54 +49,37 @@ void draw_obj(
             int i2 = mesh->indices[3 * t + 1];
             int i3 = mesh->indices[3 * t + 2];
 
-            Vec4 c1 = scratch_clip[i1];
-            Vec4 c2 = scratch_clip[i2];
-            Vec4 c3 = scratch_clip[i3];
-            if (c1.w <= uni->near || c2.w <= uni->near || c3.w <= uni->near)
+            Vec4 c[3] = { scratch_clip[i1], scratch_clip[i2], scratch_clip[i3] };
+            if (c[0].w <= uni->near && c[1].w <= uni->near && c[2].w <= uni->near)
                 continue;
-
-            float invw1 = 1.f / c1.w;
-            float invw2 = 1.f / c2.w;
-            float invw3 = 1.f / c3.w;
-
-            Vertex v1 = {
-                .invw = invw1, .n = scratch_norm[i1],
-                .scr = (Vec2){
-                    (c1.x * invw1 * .5f + .5f) * fb_width,
-                    (c1.y * invw1 * .5f + .5f) * fb_height
-                },
-                .depth = c1.z * invw1
-            };
-            Vertex v2 = {
-                .invw = invw2, .n = scratch_norm[i2],
-                .scr = (Vec2){
-                    (c2.x * invw2 * .5f + .5f) * fb_width,
-                    (c2.y * invw2 * .5f + .5f) * fb_height
-                },
-                .depth = c2.z * invw2
-            };
-            Vertex v3 = {
-                .invw = invw3, .n = scratch_norm[i3],
-                .scr = (Vec2){
-                    (c3.x * invw3 * .5f + .5f) * fb_width,
-                    (c3.y * invw3 * .5f + .5f) * fb_height
-                },
-                .depth = c3.z * invw3
-            };
-
+            Vec3 ns[3]  = { scratch_norm[i1], scratch_norm[i2], scratch_norm[i3] };
+            Vec2 uvs[3];
             if (mesh->tcs)
             {
-                v1.uv = mesh->tcs[i1];
-                v2.uv = mesh->tcs[i2];
-                v3.uv = mesh->tcs[i3];
+                uvs[0] = mesh->tcs[i1];
+                uvs[1] = mesh->tcs[i2];
+                uvs[2] = mesh->tcs[i3];
             }
 
-            draw_tri_tex(
-                pixels, depth, fb_width, fb_height,
-                v1, v2, v3,
-                obj->fallback_albedo, uni->l_clip,
-                tex, uni->cull_backfaces
-            );
+            Vec4 cout[4];
+            Vec3 nout[4];
+            Vec2 uvout[4];
+            int n = clip_near(c, ns, uvs, uni->near, cout, nout, uvout);
+            if (n < 3)
+                continue;
+
+            for (int k = 1; k + 1 < n; k++)
+            {
+                Vertex v1 = make_vertex(cout[0], nout[0], uvout[0], fb_width, fb_height);
+                Vertex v2 = make_vertex(cout[k], nout[k], uvout[k],  fb_width, fb_height);
+                Vertex v3 = make_vertex(cout[k+1], nout[k+1], uvout[k+1], fb_width, fb_height);
+
+                draw_tri_tex(
+                    pixels, depth, fb_width, fb_height,
+                    v1, v2, v3, obj->fallback_albedo, uni->l_clip,
+                    tex, uni->cull_backfaces
+                );
+            }
         }
     }
 }

@@ -78,6 +78,7 @@ if(glfw3_FOUND AND OpenGL_FOUND)
         src/scenes.c
         src/draw_tri.c
         src/misc.c
+        src/interpolation.c
     )
     target_link_libraries(main_app PRIVATE raster_utils glfw OpenGL::GL)
 else()

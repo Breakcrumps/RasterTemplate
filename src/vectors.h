@@ -56,9 +56,18 @@ static inline Vec4 make_v4(float x, float y, float z, float w)
     return (Vec4){ x, y, z, w };
 }
 
+static inline Vec3 add3(Vec3 a, Vec3 b)
+{
+    return (Vec3){ a.x + b.x, a.y + b.y, a.z + b.z };
+}
 static inline Vec3 sub3(Vec3 a, Vec3 b)
 {
     return (Vec3){ a.x - b.x, a.y - b.y, a.z - b.z };
+}
+
+static inline Vec3 scaled3(Vec3 v, float s)
+{
+    return (Vec3){ v.x * s, v.y * s, v.z * s };
 }
 
 static inline float edge(Vec2 a, Vec2 b, Vec2 c)
