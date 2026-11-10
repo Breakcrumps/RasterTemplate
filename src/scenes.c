@@ -49,7 +49,7 @@ void draw_obj(
             Vec4 c[3] = { scratch_clip[i1], scratch_clip[i2], scratch_clip[i3] };
             if (c[0].w <= uni->near && c[1].w <= uni->near && c[2].w <= uni->near)
                 continue;
-            Vec3 ns[3]  = { scratch_norm[i1], scratch_norm[i2], scratch_norm[i3] };
+            Vec3 ns[3] = { scratch_norm[i1], scratch_norm[i2], scratch_norm[i3] };
             Vec2 uvs[3];
             if (mesh->tcs)
             {

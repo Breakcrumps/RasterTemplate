@@ -6,7 +6,7 @@
 
 typedef enum shade_mode
 {
-    SHADE_DEBUG = 1,
+    SHADE_LOD = 1,
     SHADE_DERIVATIVE = 2,
     SHADE_DEPTH_ONLY = 4,
     SHADE_SOLID = 8

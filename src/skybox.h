@@ -9,7 +9,7 @@ struct uniforms;
 
 typedef struct cubemap
 {
-    Texture faces[6]; 
+    Texture faces[6]; // -+x, +-y, +-z (but not in geometry mode)
 } Cubemap;
 
 void draw_skybox_ray(

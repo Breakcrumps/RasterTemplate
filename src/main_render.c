@@ -172,7 +172,7 @@ static void draw_lambert(
     }
 }
 
-int main(int argc, char *argv[])
+int main()
 {
     int w = 1024, h = 768;
     const char *m_path = "resources/Bunny.obj";
@@ -180,8 +180,7 @@ int main(int argc, char *argv[])
     mesh_normalize(model);
     mesh_compute_normals(&model);
     
-    Texture tex = {0};
-    texture_load("resources/textures/porcelain.jpg", 2.2f);
+    Texture tex = texture_load("resources/textures/porcelain.jpg", 2.2f);
 
     float *color = calloc((size_t)w * h * 3, sizeof(float));
     if (!color)

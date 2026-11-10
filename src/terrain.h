@@ -35,7 +35,7 @@ void terrain_init(
 void terrain_free(Terrain *t);
 void terrain_save_heightmap_png(const Terrain *t, const char *path);
 
-float terrain_sample_height(const Terrain *t, float wx, float wz);
+float terrain_main_loop_sample(const Terrain *t, float wx, float wz);
 Vec3 terrain_sample_normal(const Terrain *t, float wx, float wz);
 
 void terrain_draw(

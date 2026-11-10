@@ -1,5 +1,4 @@
 #include "terrain.h"
-#include "noise.h"
 #include "misc.h"
 #include "uniforms.h"
 #include "texture.h"
@@ -73,7 +72,7 @@ void terrain_save_heightmap_png(const Terrain *t, const char *path)
     free(rgb);
 }
 
-static float terrain_sample_height_old(const Terrain *t, float wx, float wz)
+static float terrain_sample_height(const Terrain *t, float wx, float wz)
 {
     float hx = wx * t->hm_w / t->world_size;
     float hz = wz * t->hm_h / t->world_size;
@@ -100,23 +99,26 @@ static float terrain_sample_height_old(const Terrain *t, float wx, float wz)
             + h01 * (1 - fx) * fz + h11 * fx * fz;
     return h * t->height_scale;
 }
-float terrain_sample_height(const Terrain *t, float wx, float wz)
+float terrain_main_loop_sample(const Terrain *t, float wx, float wz)
 {
     float step = t->step;
     float half = (t->grid_n >> 1) * step;
 
-    // Тот же snap и origin, что в terrain_draw
     float origin_x = roundf(wx / step) * step - half;
     float origin_z = roundf(wz / step) * step - half;
 
     float hx = (wx - origin_x) / step;
     float hz = (wz - origin_z) / step;
-    int i = (int)floorf(hx);
-    int j = (int)floorf(hz);
-    if (i < 0) i = 0;
-    if (j < 0) j = 0;
-    if (i > t->grid_n - 1) i = t->grid_n - 1;
-    if (j > t->grid_n - 1) j = t->grid_n - 1;
+    int i = floorf(hx);
+    int j = floorf(hz);
+    if (i < 0)
+        i = 0;
+    if (j < 0)
+        j = 0;
+    if (i > t->grid_n - 1)
+        i = t->grid_n - 1;
+    if (j > t->grid_n - 1)
+        j = t->grid_n - 1;
     float fx = hx - i;
     float fz = hz - j;
 
@@ -125,15 +127,11 @@ float terrain_sample_height(const Terrain *t, float wx, float wz)
     float x1 = x0 + step;
     float z1 = z0 + step;
 
-    // Точно те же высоты, что кладутся в t->cache в terrain_draw
-    float h00 = terrain_sample_height_old(t, x0, z0);
-    float h10 = terrain_sample_height_old(t, x1, z0);
-    float h01 = terrain_sample_height_old(t, x0, z1);
-    float h11 = terrain_sample_height_old(t, x1, z1);
+    float h00 = terrain_sample_height(t, x0, z0);
+    float h10 = terrain_sample_height(t, x1, z0);
+    float h01 = terrain_sample_height(t, x0, z1);
+    float h11 = terrain_sample_height(t, x1, z1);
 
-    // Ячейка делится диагональю на два треугольника:
-    //   (i00, i10, i01) — при fx + fz <= 1
-    //   (i10, i11, i01) — при fx + fz >= 1
     if (fx + fz <= 1.f)
         return h00 + fx * (h10 - h00) + fz * (h01 - h00);
     else
@@ -143,10 +141,10 @@ float terrain_sample_height(const Terrain *t, float wx, float wz)
 Vec3 terrain_sample_normal(const Terrain *t, float wx, float wz)
 {
     float eps = t->step;
-    float hL = terrain_sample_height_old(t, wx - eps, wz);
-    float hR = terrain_sample_height_old(t, wx + eps, wz);
-    float hD = terrain_sample_height_old(t, wx, wz - eps);
-    float hU = terrain_sample_height_old(t, wx, wz + eps);
+    float hL = terrain_sample_height(t, wx - eps, wz);
+    float hR = terrain_sample_height(t, wx + eps, wz);
+    float hD = terrain_sample_height(t, wx, wz - eps);
+    float hU = terrain_sample_height(t, wx, wz + eps);
     Vec3 n = { (hL - hR) / (2.f * eps), 1.f, (hD - hU) / (2.f * eps) };
     return normalized3(n);
 }
@@ -172,21 +170,21 @@ static int terrain_clip_near(
         {
             float t = (near - cin[i].w) / (cin[j].w - cin[i].w);
             cout[n] = (Vec4){
-                cin[i].x + t*(cin[j].x - cin[i].x),
-                cin[i].y + t*(cin[j].y - cin[i].y),
-                cin[i].z + t*(cin[j].z - cin[i].z),
+                cin[i].x + t * (cin[j].x - cin[i].x),
+                cin[i].y + t * (cin[j].y - cin[i].y),
+                cin[i].z + t * (cin[j].z - cin[i].z),
                 near
             };
             nout[n] = normalized3((Vec3){
-                nin[i].x + t*(nin[j].x - nin[i].x),
-                nin[i].y + t*(nin[j].y - nin[i].y),
-                nin[i].z + t*(nin[j].z - nin[i].z)
+                nin[i].x + t * (nin[j].x - nin[i].x),
+                nin[i].y + t * (nin[j].y - nin[i].y),
+                nin[i].z + t * (nin[j].z - nin[i].z)
             });
             uvout[n] = (Vec2){
-                uvin[i].x + t*(uvin[j].x - uvin[i].x),
-                uvin[i].y + t*(uvin[j].y - uvin[i].y)
+                uvin[i].x + t * (uvin[j].x - uvin[i].x),
+                uvin[i].y + t * (uvin[j].y - uvin[i].y)
             };
-            bout[n] = bin[i] + t*(bin[j] - bin[i]);
+            bout[n] = bin[i] + t * (bin[j] - bin[i]);
             n++;
         }
     }
@@ -250,20 +248,20 @@ static void draw_tri_terrain(
     float dgx = (scr[0].y - scr[1].y) * inv_area;
     float dgy = (scr[1].x - scr[0].x) * inv_area;
 
-    float uiw1 = uv[0].x*invw[0], uiw2 = uv[1].x*invw[1], uiw3 = uv[2].x*invw[2];
-    float viw1 = uv[0].y*invw[0], viw2 = uv[1].y*invw[1], viw3 = uv[2].y*invw[2];
-    float biw1 = blend[0]*invw[0], biw2 = blend[1]*invw[1], biw3 = blend[2]*invw[2];
+    float uiw1 = uv[0].x * invw[0], uiw2 = uv[1].x * invw[1], uiw3 = uv[2].x * invw[2];
+    float viw1 = uv[0].y * invw[0], viw2 = uv[1].y * invw[1], viw3 = uv[2].y * invw[2];
+    float biw1 = blend[0] * invw[0], biw2 = blend[1] * invw[1], biw3 = blend[2] * invw[2];
     float iw1 = invw[0], iw2 = invw[1], iw3 = invw[2];
 
-    float dA_dx  = dax*iw1 + dbx*iw2 + dgx*iw3;
-    float dA_dy  = day*iw1 + dby*iw2 + dgy*iw3;
-    float dBu_dx = dax*uiw1 + dbx*uiw2 + dgx*uiw3;
-    float dBu_dy = day*uiw1 + dby*uiw2 + dgy*uiw3;
-    float dBv_dx = dax*viw1 + dbx*viw2 + dgx*viw3;
-    float dBv_dy = day*viw1 + dby*viw2 + dgy*viw3;
+    float dA_dx  = dax * iw1 + dbx * iw2 + dgx * iw3;
+    float dA_dy  = day * iw1 + dby * iw2 + dgy * iw3;
+    float dBu_dx = dax * uiw1 + dbx * uiw2 + dgx * uiw3;
+    float dBu_dy = day * uiw1 + dby * uiw2 + dgy * uiw3;
+    float dBv_dx = dax * viw1 + dbx * viw2 + dgx * viw3;
+    float dBv_dy = day * viw1 + dby * viw2 + dgy * viw3;
 
-    float tw = grass->levels ? (float)grass->ws[0] : 1.f;
-    float th = grass->levels ? (float)grass->hs[0] : 1.f;
+    float tw = grass->levels ? grass->ws[0] : 1.f;
+    float th = grass->levels ? grass->hs[0] : 1.f;
 
     for (int y = min_y; y <= max_y; y++)
     {
@@ -277,16 +275,6 @@ static void draw_tri_terrain(
             float bw = edge(scr[0], scr[1], p) * inv_area;
             if (bu < 0.f || bv < 0.f || bw < 0.f)
                 continue;
-
-            if (uni->shade_mode & SHADE_SOLID)
-            {
-                Vec3 albedo = make_v3(.55f, .5f, .45f);
-                pixels[idx << 2] = to_u8(albedo.x);
-                pixels[(idx << 2) + 1] = to_u8(albedo.y);
-                pixels[(idx << 2) + 2] = to_u8(albedo.z);
-                pixels[(idx << 2) + 3] = 255;
-                continue;
-            }
 
             float z = bu * zval[0] + bv * zval[1] + bw * zval[2];
             if (z >= depth[idx])
@@ -320,7 +308,7 @@ static void draw_tri_terrain(
 
             depth[idx] = z;
 
-            if (uni->shade_mode & SHADE_DEBUG)
+            if (uni->shade_mode & SHADE_LOD)
             {
                 Vec3 dbg = lod_debug_color(lod);
                 pixels[idx << 2] = to_u8(dbg.x);
@@ -332,14 +320,19 @@ static void draw_tri_terrain(
 
             Vec3 cg = texture_sample_trilinear(grass, u, vv, lod);
             Vec3 cr = texture_sample_trilinear(rock,  u, vv, lod);
-            Vec3 albedo = make_v3(
-                cg.x * (1.f - bl) + cr.x * bl,
-                cg.y * (1.f - bl) + cr.y * bl,
-                cg.z * (1.f - bl) + cr.z * bl
-            );
+            Vec3 albedo;
+            if (uni->shade_mode & SHADE_SOLID)
+                albedo = make_v3(.55f, .5f, .45f);
+            else
+                albedo = make_v3(
+                    cg.x * (1.f - bl) + cr.x * bl,
+                    cg.y * (1.f - bl) + cr.y * bl,
+                    cg.z * (1.f - bl) + cr.z * bl
+                );
 
             float ndotl = dot3(n, uni->l_clip);
-            if (ndotl < 0.f) ndotl = 0.f;
+            if (ndotl < 0.f)
+                ndotl = 0.f;
             float shade = .05f + .95f * ndotl;
 
             pixels[idx << 2] = to_u8(albedo.x * shade);
@@ -372,10 +365,10 @@ static void terrain_emit_tri(
 
     for (int k = 1; k + 1 < n; k++)
     {
-        Vec4 cc[3] = { cout[0], cout[k], cout[k+1] };
-        Vec2 uc[3] = { uvout[0], uvout[k], uvout[k+1] };
-        Vec3 nc[3] = { nout[0], nout[k], nout[k+1] };
-        float bc[3] = { bout[0], bout[k], bout[k+1] };
+        Vec4 cc[3] = { cout[0], cout[k], cout[k + 1] };
+        Vec2 uc[3] = { uvout[0], uvout[k], uvout[k + 1] };
+        Vec3 nc[3] = { nout[0], nout[k], nout[k + 1] };
+        float bc[3] = { bout[0], bout[k], bout[k + 1] };
         draw_tri_terrain(
             pixels, depth, width, height,
             cc, uc, nc, bc, uni, grass, rock
@@ -389,8 +382,7 @@ void terrain_draw(
     const Uniforms *uni,
     const Texture *grass, const Texture *rock)
 {
-    int 
-    n = t->grid_n;
+    int n = t->grid_n;
     float step = t->step;
     float half = (n >> 1) * step;
 
@@ -414,12 +406,12 @@ void terrain_draw(
         {
             float wx = origin_x + i * step;
             float wz = origin_z + j * step;
-            float h  = terrain_sample_height_old(t, wx, wz);
+            float h  = terrain_sample_height(t, wx, wz);
             Vec3 nw  = terrain_sample_normal(t, wx, wz);
             Vec3 nv  = normalized3(mul_m3x3_v3(view3, nw));
             Vec4 clip = mul_m4x4_v4(uni->vp, make_v4(wx, h, wz, 1.f));
             Vec2 uv = { wx * uv_scale, wz * uv_scale };
-            float blend = clamp01((0.75f - nw.y) / 0.45f);
+            float blend = clamp01((.75f - nw.y) / .45f);
             t->cache[j * stride + i] = (TerrainVert){ clip, nv, uv, blend };
         }
     }
@@ -428,7 +420,7 @@ void terrain_draw(
     {
         for (int i = 0; i < n; i++)
         {
-            int i00 = j*stride + i;
+            int i00 = j * stride + i;
             int i10 = i00 + 1;
             int i01 = i00 + stride;
             int i11 = i01 + 1;

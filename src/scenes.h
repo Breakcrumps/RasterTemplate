@@ -10,7 +10,7 @@ struct uniforms;
 
 typedef struct scene_obj
 {
-  const Mesh *mesh;
+  Mesh *mesh;
   Mat4x4 *instances;
   Texture tex;
   Vec3 fallback_albedo;

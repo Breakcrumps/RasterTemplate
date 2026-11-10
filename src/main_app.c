@@ -134,9 +134,9 @@ int main(int argc, char *argv[])
 
 
     Cubemap cubemap = cubemap_load((char *[6]){
-        "resources/textures/skybox/hills_rt.png", "resources/textures/skybox/hills_lf.png",
+        "resources/textures/skybox/hills_lf.png", "resources/textures/skybox/hills_rt.png",
         "resources/textures/skybox/hills_up.jpg", "resources/textures/skybox/hills_dn.png",
-        "resources/textures/skybox/hills_ft.png", "resources/textures/skybox/hills_bk.png"
+        "resources/textures/skybox/hills_bk.png", "resources/textures/skybox/hills_ft.png"
     });
 
     Texture tex_rock = texture_load("resources/textures/Grass_13-256x256.png", 2.2f);
@@ -144,20 +144,23 @@ int main(int argc, char *argv[])
     Terrain terrain;
     terrain_init(&terrain, 24, 5.f, 4.f, 1337u, 5);
 
-    for (int k = 0; k < scene.objects[0].instance_count; k++)
+    static const struct { float dx_step, z, y_bonus, scale, a_step; } layout[3] = {
+        { .9f, 0.f, .1f, .4f, .7f },
+        { .9f, 1.f, .1f, .4f, .9f },
+        { .9f, 2.f, .5f, 1.f, .9f },
+    };
+    for (int o = 0; o < 3; o++)
     {
-        float ox = (k - 1) * .9f;
-        scene.objects[0].instances[k] = trs_m4x4(k * .7f, Y, make_v3(ox, terrain_sample_height(&terrain, ox, 0.f) + .1f, 0.f), .4f);
-    }
-    for (int k = 0; k < scene.objects[1].instance_count; k++)
-    {
-        float ox = (k - 1) * .9f;
-        scene.objects[1].instances[k] = trs_m4x4(k * .9f, Y, make_v3(ox, terrain_sample_height(&terrain, ox, 1.f) + .1f, 1.f), .4f);
-    }
-    for (int k = 0; k < scene.objects[2].instance_count; k++)
-    {
-        float ox = (k - 1) * .9f;
-        scene.objects[2].instances[k] = trs_m4x4(k * .9f, Y, make_v3(ox, terrain_sample_height(&terrain, ox, 2.f) + .5f, 2.f), 1.f);
+        for (int k = 0; k < scene.objects[o].instance_count; k++)
+        {
+            float ox = (k - 1) * layout[o].dx_step;
+            float oy = terrain_main_loop_sample(&terrain, ox, layout[o].z) + layout[o].y_bonus;
+            scene.objects[o].instances[k] = trs_m4x4(
+                k * layout[o].a_step, Y,
+                make_v3(ox, oy, layout[o].z),
+                layout[o].scale
+            );
+        }
     }
     
     int max_verts = scene.objects[0].mesh->vert_count;
@@ -179,8 +182,8 @@ int main(int argc, char *argv[])
     bool firstFrame = true;
     double last_mx = 0., last_my = 0.;
 
-    bool ray_skybox = false;
-    ShadeMode shade_mode = SHADE_DEBUG;
+    bool ray_skybox = true;
+    ShadeMode shade_mode = 0;
     UpscaleMode upscale_mode = UPSCALE_NONE;
     bool ground_cam = false;
     float eye_height = 1.5f;
@@ -235,7 +238,7 @@ int main(int argc, char *argv[])
         camera_pos = add3(camera_pos, scaled3(normalized3(moveDir), speed * dt));
 
         if (ground_cam)
-            camera_pos.y = terrain_sample_height(&terrain, camera_pos.x, camera_pos.z) + eye_height;
+            camera_pos.y = terrain_main_loop_sample(&terrain, camera_pos.x, camera_pos.z) + eye_height;
         
         Mat4x4 view = look_at_m4x4(
             camera_pos,
@@ -249,7 +252,7 @@ int main(int argc, char *argv[])
         };
 
         if (just_pressed(window, GLFW_KEY_F1))
-            shade_mode ^= SHADE_DEBUG;
+            shade_mode ^= SHADE_LOD;
         if (just_pressed(window, GLFW_KEY_F2))
             shade_mode ^= SHADE_DERIVATIVE;
         if (just_pressed(window, GLFW_KEY_F3))
@@ -258,8 +261,6 @@ int main(int argc, char *argv[])
             shade_mode ^= SHADE_DEPTH_ONLY;
         if (just_pressed(window, GLFW_KEY_F5))
             shade_mode ^= SHADE_SOLID;
-        if (just_pressed(window, GLFW_KEY_F6))
-            upscale_mode = (UpscaleMode)((upscale_mode + 1) & 0x3);
         if (just_pressed(window, GLFW_KEY_G))
             ground_cam = !ground_cam;
         
@@ -283,38 +284,16 @@ int main(int argc, char *argv[])
             depth[i] = FLT_MAX;
         }
         
-        // for (int k = 0; k < scene.objects[0].instance_count; k++)
-        // {
-        //     float ox = (k - 1) * .9f;
-        //     scene.objects[0].instances[k] = trs_m4x4(now + k * .7f, Y, make_v3(ox, 0.f, 0.f), .4f);
-        // }
-        // for (int k = 0; k < scene.objects[1].instance_count; k++)
-        // {
-        //     float ox = (k - 1) * .9f;
-        //     scene.objects[1].instances[k] = trs_m4x4(-now + k * .9f, Y, make_v3(ox, 0.f, 1.f), .4f);
-        // }
-        // for (int k = 0; k < scene.objects[2].instance_count; k++)
-        // {
-        //     float ox = (k - 1) * .9f;
-        //     scene.objects[2].instances[k] = trs_m4x4(-now + k * .9f, Y, make_v3(ox, 0.f, 2.f), 1.f);
-        // }
-
-        
-        terrain_draw(pixels, depth, render_width, render_height, &terrain, camera_pos, &uni, &tex_grass, &tex_rock);
         scene_draw(
             pixels, depth, render_width, render_height,
             &scene, &uni,
             scratch_clip, scratch_norm
         );
+        terrain_draw(pixels, depth, render_width, render_height, &terrain, camera_pos, &uni, &tex_grass, &tex_rock);
         if (ray_skybox)
             draw_skybox_ray(pixels, depth, render_width, render_height, &cubemap, &uni);
         else
             draw_skybox_geom(pixels, depth, render_width, render_height, &cubemap, &uni, camera_pos);
-
-        // nearest(out_pixels, fb_width, fb_height, pixels, render_width, render_height);
-        // bilinear(out_pixels, fb_width, fb_height, pixels, render_width, render_height);
-        // whole(out_pixels, fb_width, pixels, render_width, render_height);
-        // memcpy(out_pixels, pixels, out_pixel_count << 2);
 
         if (upscale_mode == UPSCALE_NEAREST)
             nearest(out_pixels, fb_width, fb_height, pixels, render_width, render_height);
@@ -349,11 +328,14 @@ int main(int argc, char *argv[])
     glfwDestroyWindow(window);
     glfwTerminate();
     for (int i = 0; i < scene.obj_count; i++)
-    free(scene.objects[i].instances);
+    {
+        free(scene.objects[i].instances);
+    }
     free(scratch_clip);
     free(scratch_norm);
     mesh_free(model1);
     mesh_free(model2);
+    mesh_free(model3);
     texture_free(&tex_porc);
     texture_free(&tex_grass);
     texture_free(&tex_rock);

@@ -2,7 +2,6 @@
 #define INTERPOLATION_H
 
 #include <inttypes.h>
-#include <stdlib.h>
 #include <string.h>
 
 typedef enum upscale_mode { UPSCALE_NEAREST, UPSCALE_BILINEAR, UPSCALE_WHOLE, UPSCALE_NONE } UpscaleMode;

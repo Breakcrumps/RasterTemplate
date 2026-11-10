@@ -11,7 +11,7 @@ Cubemap cubemap_load(const char *paths[6])
     Cubemap cm;
     for (int i = 0; i < 6; i++)
     {
-        cm.faces[i] = texture_load(paths[i], 1.0f); 
+        cm.faces[i] = texture_load(paths[i], 2.2f); 
     }
     return cm;
 }
@@ -54,7 +54,7 @@ static Vec3 cubemap_sample(const Cubemap *cm, Vec3 dir)
         if (dir.y > 0)
         {
             face_index = 2;
-            u = -dir.x; v = -dir.z;
+            u = dir.x; v = dir.z;
         }
         else
         {
@@ -79,6 +79,12 @@ static Vec3 cubemap_sample(const Cubemap *cm, Vec3 dir)
 
     u = .5f * (u / max_axis + 1.f);
     v = .5f * (v / max_axis + 1.f);
+
+    float w = cm->faces[face_index].ws[0]; 
+    float h = cm->faces[face_index].hs[0];
+
+    u = (u * (w - 1.f) + .5f) / w;
+    v = (v * (h - 1.f) + .5f) / h;
 
     return texture_sample_bilinear_level(&cm->faces[face_index], 0, u, v);
 }
@@ -135,7 +141,7 @@ void draw_skybox_ray(
 static void draw_tri_skybox(
     uint8_t *pixels, float *depth, int width, int height,
     Vertex v1, Vertex v2, Vertex v3,
-    Vec3 albedo, const Uniforms *uni,
+    Vec3 albedo,
     const Texture *tex
 )
 {
@@ -200,10 +206,6 @@ static void draw_tri_skybox(
                 albedo_used = albedo;
             }
 
-            float ndotl = dot3(n, uni->l_clip);
-            if (ndotl < 0.f)
-                ndotl = 0.f;
-
             pixels[idx << 2] = to_u8(albedo_used.x);
             pixels[(idx << 2) + 1] = to_u8(albedo_used.y);
             pixels[(idx << 2) + 2] = to_u8(albedo_used.z);
@@ -225,8 +227,14 @@ static void draw_skybox_face(
         mul_m4x4_v4(uni->vp, make_v4(p3.x, p3.y, p3.z, 1.f))
     };
 
+    float inset_u = .5f / tex->ws[0]; // ширина половины пикселя
+    float inset_v = .5f / tex->hs[0];
+
     Vec2 uvs[4] = {
-        { 0.f, 0.f }, { 1.f, 0.f }, { 1.f, 1.f }, { 0.f, 1.f }
+        { 0.f + inset_u, 0.f + inset_v }, // Минус швы
+        { 1.f - inset_u, 0.f + inset_v },
+        { 1.f - inset_u, 1.f - inset_v },
+        { 0.f + inset_u, 1.f - inset_v }
     };
     Vec3 dummy_norm = uni->l_clip;
 
@@ -250,9 +258,6 @@ static void draw_skybox_face(
         if (n < 3)
             continue;
 
-        Uniforms sky_uni = *uni;
-        sky_uni.cull_backfaces = false; 
-
         for (int k = 1; k + 1 < n; k++)
         {
             Vertex v1 = make_vertex(cout[0], nout[0], uvout[0], w, h);
@@ -262,7 +267,7 @@ static void draw_skybox_face(
             draw_tri_skybox(
                 pixels, depth, w, h,
                 v1, v2, v3, make_v3(1.f, 1.f, 1.f),
-                &sky_uni, tex
+                tex
             );
         }
     }
@@ -284,7 +289,7 @@ void draw_skybox_geom(
 
     draw_skybox_face(pixels, depth, width, height, v101, v100, v110, v111, &cm->faces[0], uni);
     draw_skybox_face(pixels, depth, width, height, v000, v001, v011, v010, &cm->faces[1], uni);
-    draw_skybox_face(pixels, depth, width, height, v110, v010, v011, v111, &cm->faces[2], uni);
+    draw_skybox_face(pixels, depth, width, height, v011, v111, v110, v010, &cm->faces[2], uni);
     draw_skybox_face(pixels, depth, width, height, v001, v101, v100, v000, &cm->faces[3], uni);
     draw_skybox_face(pixels, depth, width, height, v100, v000, v010, v110, &cm->faces[4], uni);
     draw_skybox_face(pixels, depth, width, height, v001, v101, v111, v011, &cm->faces[5], uni);
