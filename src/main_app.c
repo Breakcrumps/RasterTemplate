@@ -252,17 +252,35 @@ int main(int argc, char *argv[])
         };
 
         if (just_pressed(window, GLFW_KEY_F1))
+        {
             shade_mode ^= SHADE_LOD;
+            printf("LOD mode: %s\n", shade_mode & SHADE_LOD ? "On" : "Off");
+        }
         if (just_pressed(window, GLFW_KEY_F2))
+        {
             shade_mode ^= SHADE_DERIVATIVE;
+            printf("Derivative mode: %s\n", shade_mode & SHADE_DERIVATIVE ? "On" : "Off");
+        }
         if (just_pressed(window, GLFW_KEY_F3))
-            ray_skybox = !ray_skybox;
-        if (just_pressed(window, GLFW_KEY_F4))
+        {
             shade_mode ^= SHADE_DEPTH_ONLY;
-        if (just_pressed(window, GLFW_KEY_F5))
+            printf("Depth lighting mode: %s\n", shade_mode & SHADE_DEPTH_ONLY ? "On" : "Off");
+        }
+        if (just_pressed(window, GLFW_KEY_F4))
+        {
             shade_mode ^= SHADE_SOLID;
+            printf("No texture mode: %s\n", shade_mode & SHADE_SOLID ? "On" : "Off");
+        }
+        if (just_pressed(window, GLFW_KEY_R))
+        {
+            ray_skybox = !ray_skybox;
+            printf("Ray skybox mode: %s\n", ray_skybox ? "On" : "Off");
+        }
         if (just_pressed(window, GLFW_KEY_G))
+        {
             ground_cam = !ground_cam;
+            printf("LOD mode: %s\n", shade_mode & SHADE_LOD ? "On" : "Off");
+        }
         
         const float near = .1f, far = 100.f;
         

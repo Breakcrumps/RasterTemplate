@@ -185,7 +185,7 @@ void draw_tri_tex(
             if (uni->shade_mode & SHADE_DEPTH_ONLY)
             {
                 float lin = linear_depth_from_z_ndc(z, uni->near, uni->far);
-                float tt  = clamp01((lin - uni->near) / (uni->far - uni->near));
+                float tt = clamp01((lin - uni->near) / (5.f - uni->near));
                 uint8_t g = to_u8(1.f - tt);
                 pixels[idx << 2] = g;
                 pixels[(idx << 2) + 1] = g;

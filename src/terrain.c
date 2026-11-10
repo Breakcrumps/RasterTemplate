@@ -406,13 +406,14 @@ void terrain_draw(
         {
             float wx = origin_x + i * step;
             float wz = origin_z + j * step;
-            float h  = terrain_sample_height(t, wx, wz);
-            Vec3 nw  = terrain_sample_normal(t, wx, wz);
+            float h = terrain_sample_height(t, wx, wz);
+            Vec3 nw = terrain_sample_normal(t, wx, wz);
             Vec3 nv  = normalized3(mul_m3x3_v3(view3, nw));
             Vec4 clip = mul_m4x4_v4(uni->vp, make_v4(wx, h, wz, 1.f));
             Vec2 uv = { wx * uv_scale, wz * uv_scale };
-            float blend = clamp01((.75f - nw.y) / .45f);
-            t->cache[j * stride + i] = (TerrainVert){ clip, nv, uv, blend };
+            float h_blend = clamp01(h / t->height_scale + .2f);
+            float n_blend = clamp01((.75f - nw.y) / .45f);
+            t->cache[j * stride + i] = (TerrainVert){ clip, nv, uv, n_blend > h_blend ? n_blend : h_blend };
         }
     }
 
