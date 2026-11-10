@@ -4,7 +4,8 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdlib.h>
+
+typedef enum upscale_mode { UPSCALE_NEAREST, UPSCALE_BILINEAR, UPSCALE_WHOLE, UPSCALE_NONE } UpscaleMode;
 
 static void nearest(
     uint8_t *out, int out_w, int out_h,

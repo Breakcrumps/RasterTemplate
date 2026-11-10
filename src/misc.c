@@ -38,9 +38,9 @@ Vec3 tex_sample_bilinear(const float *tex, int w, int h, float u, float v)
     float w11 = fx * fy;
 
     return make_v3(
-        w00*c00[0] + w10*c10[0] + w01*c01[0] + w11*c11[0],
-        w00*c00[1] + w10*c10[1] + w01*c01[1] + w11*c11[1],
-        w00*c00[2] + w10*c10[2] + w01*c01[2] + w11*c11[2]
+        w00 * c00[0] + w10 * c10[0] + w01 * c01[0] + w11 * c11[0],
+        w00 * c00[1] + w10 * c10[1] + w01 * c01[1] + w11 * c11[1],
+        w00 * c00[2] + w10 * c10[2] + w01 * c01[2] + w11 * c11[2]
     );
 }
 

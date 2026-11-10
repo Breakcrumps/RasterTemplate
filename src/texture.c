@@ -1,9 +1,12 @@
 #include "texture.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <math.h>
 #include "image_utils.h"
+#include "vectors.h"
+#include "misc.h"
 
 static int mip_count(int w, int h)
 {
@@ -45,7 +48,7 @@ static float *downsample_2x2(const float *in, int in_w, int in_h, int *dw, int *
     return dst;
 }
 
-Texture texture_from_pixels(const float *pixels, int w, int h)
+Texture texture_from_pixels(float *pixels, int w, int h)
 {
     Texture t = {0};
     if (!pixels || w <= 0 || h <= 0)
@@ -93,4 +96,37 @@ void texture_free(Texture *t)
     free(t->ws);
     free(t->hs);
     *t = (Texture){0};
+}
+
+Vec3 texture_sample_bilinear_level(const Texture *t, int level, float u, float v)
+{
+    if (!t || !t->levels || level < 0 || level >= t->count)
+        return make_v3(1.f, 1.f, 1.f);
+    return tex_sample_bilinear(t->levels[level], t->ws[level], t->hs[level], u, v);
+}
+
+Vec3 texture_sample_trilinear(const Texture *t, float u, float v, float lod)
+{
+    if (!t || !t->levels)
+        return make_v3(1.f, 1.f, 1.f);
+
+    if (lod < 0.f)
+        lod = 0.f;
+    if (lod > t->count - 1)
+        lod = t->count - 1;
+
+    int l0 = floorf(lod);
+    float f  = lod - l0;
+    int l1 = l0 + 1 < t->count ? l0 + 1 : l0;
+
+    Vec3 c0 = texture_sample_bilinear_level(t, l0, u, v);
+    if (f < 1e-4f || l0 == l1)
+        return c0;
+
+    Vec3 c1 = texture_sample_bilinear_level(t, l1, u, v);
+    return make_v3(
+        c0.x * (1.f - f) + c1.x * f,
+        c0.y * (1.f - f) + c1.y * f,
+        c0.z * (1.f - f) + c1.z * f
+    );
 }

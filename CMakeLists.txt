@@ -46,6 +46,7 @@ add_executable(main_render
     src/scenes.c
     src/draw_tri.c
     src/misc.c
+    src/texture.c
 )
 target_link_libraries(main_render PRIVATE raster_utils glfw OpenGL::GL)
 
@@ -79,6 +80,11 @@ if(glfw3_FOUND AND OpenGL_FOUND)
         src/draw_tri.c
         src/misc.c
         src/interpolation.c
+        src/texture.c
+        src/skybox.c
+        src/terrain.c
+        src/noise.c
+        src/terrain.c
     )
     target_link_libraries(main_app PRIVATE raster_utils glfw OpenGL::GL)
 else()

@@ -24,7 +24,7 @@ static inline void draw_tri_lambert(
     float area = edge(s0, s1, s2);
     if (fabsf(area) < 1e-6f)
         return;
-    if (cull_backfaces && area > 0.f)
+    if (cull_backfaces && area < 0.f)
         return;
 
     int min_x = fminf(s0.x, fminf(s1.x, s2.x));
@@ -180,8 +180,8 @@ int main(int argc, char *argv[])
     mesh_normalize(model);
     mesh_compute_normals(&model);
     
-    Texture tex;
-    tex.pixels = load_image_f32_rgb("resources/textures/porcelain.jpg", &tex.w, &tex.h, 2.2f);
+    Texture tex = {0};
+    texture_load("resources/textures/porcelain.jpg", 2.2f);
 
     float *color = calloc((size_t)w * h * 3, sizeof(float));
     if (!color)
@@ -295,7 +295,7 @@ int main(int argc, char *argv[])
     free(scratch_clip);
     free(scratch_norm);
     free(object.instances);
-    free(tex.pixels);
-    free_mesh(model);
+    texture_free(&tex);
+    mesh_free(model);
     return 0;
 }

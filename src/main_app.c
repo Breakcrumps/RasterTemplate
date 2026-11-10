@@ -17,11 +17,22 @@
 #include <stdbool.h>
 #include <interpolation.h>
 #include "mesh_utils.h"
-#include "image_utils.h"
 #include "scenes.h"
 #include "matrices.h"
 #include "uniforms.h"
 #include "glfw_utils.h"
+#include "texture.h"
+#include "skybox.h"
+#include "terrain.h"
+
+static bool just_pressed(GLFWwindow *w, int key)
+{
+    static char prev[GLFW_KEY_LAST + 1] = {0};
+    bool cur = glfwGetKey(w, key) == GLFW_PRESS;
+    bool res = cur && !prev[key];
+    prev[key] = cur;
+    return res;
+}
 
 int main(int argc, char *argv[])
 {
@@ -41,16 +52,24 @@ int main(int argc, char *argv[])
     Mesh model2 = load_obj("resources/Chicken_01.obj");
     if (model2.vert_count <= 0 || model2.tri_count <= 0)
     {
-        free_mesh(model2);
+        mesh_free(model1);
         return -1;
     }
     mesh_normalize(model2);
     mesh_compute_normals(&model2);
+
+    Mesh model3 = load_obj("resources/Roman Centurion.obj");
+    if (model3.vert_count <= 0 || model3.tri_count <= 0)
+    {
+        mesh_free(model1);
+        mesh_free(model2);
+        return -1;
+    }
+    mesh_normalize(model3);
+    mesh_compute_normals(&model3);
     
-    Texture tex1;
-    tex1.pixels = load_image_f32_rgb("resources/textures/porcelain.jpg", &tex1.w, &tex1.h, 2.2f);
-    Texture tex2;
-    tex2.pixels = load_image_f32_rgb("resources/textures/Grass_09-256x256.png", &tex2.w, &tex2.h, 2.2f);
+    Texture tex_porc = texture_load("resources/textures/porcelain.jpg", 2.2f);
+    Texture tex_grass = texture_load("resources/textures/Grass_09-256x256.png", 2.2f);
     
     // Размер буфера пикселей жёстко связан с размером окна, поэтому менять его нельзя
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
@@ -86,44 +105,97 @@ int main(int argc, char *argv[])
     double report_time = prev_time;
     int report_frames = 0;
     
-    SceneObj objects[2] = {
+    SceneObj objects[3] = {
         (SceneObj){
             .mesh = &model1,
-            .tex = tex1,
+            .tex = tex_porc,
             .fallback_albedo = make_v3(.85f, .80f, .72f),
-            .instance_count = 3,
-            .instances = malloc(3 * sizeof(Mat4x4))
+            .instance_count = 1,
+            .instances = malloc(sizeof(Mat4x4))
         },
         (SceneObj){
             .mesh = &model2,
-            .tex = tex2,
+            .tex = {0},
             .fallback_albedo = make_v3(.72f, .78f, .85f),
-            .instance_count = 3,
-            .instances = malloc(3 * sizeof(Mat4x4))
+            .instance_count = 2,
+            .instances = malloc(2 * sizeof(Mat4x4))
+        },
+        (SceneObj){
+            .mesh = &model3,
+            .tex = {0},
+            .fallback_albedo = make_v3(1.f, 1.f, 1.f),
+            .instance_count = 1,
+            .instances = malloc(sizeof(Mat4x4))
         }
     };
     Scene scene = {
-        .obj_count = 2, .objects = objects
+        .obj_count = 3, .objects = objects
     };
+
+
+    Cubemap cubemap = cubemap_load((char *[6]){
+        "resources/textures/skybox/hills_rt.png", "resources/textures/skybox/hills_lf.png",
+        "resources/textures/skybox/hills_up.jpg", "resources/textures/skybox/hills_dn.png",
+        "resources/textures/skybox/hills_ft.png", "resources/textures/skybox/hills_bk.png"
+    });
+
+    Texture tex_rock = texture_load("resources/textures/Grass_13-256x256.png", 2.2f);
+
+    Terrain terrain;
+    terrain_init(&terrain, 24, 5.f, 4.f, 1337u, 5);
+
+    for (int k = 0; k < scene.objects[0].instance_count; k++)
+    {
+        float ox = (k - 1) * .9f;
+        scene.objects[0].instances[k] = trs_m4x4(k * .7f, Y, make_v3(ox, terrain_sample_height(&terrain, ox, 0.f) + .1f, 0.f), .4f);
+    }
+    for (int k = 0; k < scene.objects[1].instance_count; k++)
+    {
+        float ox = (k - 1) * .9f;
+        scene.objects[1].instances[k] = trs_m4x4(k * .9f, Y, make_v3(ox, terrain_sample_height(&terrain, ox, 1.f) + .1f, 1.f), .4f);
+    }
+    for (int k = 0; k < scene.objects[2].instance_count; k++)
+    {
+        float ox = (k - 1) * .9f;
+        scene.objects[2].instances[k] = trs_m4x4(k * .9f, Y, make_v3(ox, terrain_sample_height(&terrain, ox, 2.f) + .5f, 2.f), 1.f);
+    }
     
     int max_verts = scene.objects[0].mesh->vert_count;
     for (int i = 1; i < scene.obj_count; i++)
     {
         if (scene.objects[i].mesh->vert_count > max_verts)
-        max_verts = scene.objects[i].mesh->vert_count;
+            max_verts = scene.objects[i].mesh->vert_count;
     }
     Vec4 *scratch_clip = malloc(max_verts * sizeof(Vec4));
     Vec3 *scratch_norm = malloc(max_verts * sizeof(Vec3));
     
     float fov_y  = (float)M_PI / 3.f;
     float aspect = (float)fb_width / fb_height;
-    Vec3 l_world = normalized3(make_v3(-.5f, .8f, .4f));
-    
+    Vec3 l_world = normalized3(make_v3(-.5f, .8f, .4f));    
+
     float yaw = 0.f, pitch = 0.f;
     Vec3 camera_pos = { 1.f, 1.f, 2.f };
     float speed = 5.f, sens = .0025f;
     bool firstFrame = true;
     double last_mx = 0., last_my = 0.;
+
+    bool ray_skybox = false;
+    ShadeMode shade_mode = SHADE_DEBUG;
+    UpscaleMode upscale_mode = UPSCALE_NONE;
+    bool ground_cam = false;
+    float eye_height = 1.5f;
+
+    if (upscale_mode == UPSCALE_WHOLE)
+    {
+        int k = fb_width / render_width;
+        if (k * render_width != fb_width || k * render_height != fb_height)
+            upscale_mode = UPSCALE_BILINEAR;
+    }
+    if (upscale_mode == UPSCALE_NONE)
+    {
+        if (render_width != fb_width || render_height != fb_height)
+            upscale_mode = UPSCALE_BILINEAR;
+    }
     
     while (!glfwWindowShouldClose(window))
     {
@@ -161,6 +233,9 @@ int main(int argc, char *argv[])
             moveDir = sub3(moveDir, right);
         
         camera_pos = add3(camera_pos, scaled3(normalized3(moveDir), speed * dt));
+
+        if (ground_cam)
+            camera_pos.y = terrain_sample_height(&terrain, camera_pos.x, camera_pos.z) + eye_height;
         
         Mat4x4 view = look_at_m4x4(
             camera_pos,
@@ -172,6 +247,21 @@ int main(int argc, char *argv[])
             view.m[1][0], view.m[1][1], view.m[1][2],
             view.m[2][0], view.m[2][1], view.m[2][2],
         };
+
+        if (just_pressed(window, GLFW_KEY_F1))
+            shade_mode ^= SHADE_DEBUG;
+        if (just_pressed(window, GLFW_KEY_F2))
+            shade_mode ^= SHADE_DERIVATIVE;
+        if (just_pressed(window, GLFW_KEY_F3))
+            ray_skybox = !ray_skybox;
+        if (just_pressed(window, GLFW_KEY_F4))
+            shade_mode ^= SHADE_DEPTH_ONLY;
+        if (just_pressed(window, GLFW_KEY_F5))
+            shade_mode ^= SHADE_SOLID;
+        if (just_pressed(window, GLFW_KEY_F6))
+            upscale_mode = (UpscaleMode)((upscale_mode + 1) & 0x3);
+        if (just_pressed(window, GLFW_KEY_G))
+            ground_cam = !ground_cam;
         
         const float near = .1f, far = 100.f;
         
@@ -180,7 +270,9 @@ int main(int argc, char *argv[])
             .view = view,
             .l_clip = normalized3(mul_m3x3_v3(view3, l_world)),
             .near = near, .far = far,
-            .cull_backfaces = true
+            .cull_backfaces = true,
+            .tex_scale = 1.f, .lod_bias = 0.f,
+            .shade_mode = shade_mode
         };
         
         uni.vp = mul4x4(uni.proj, uni.view);
@@ -191,29 +283,47 @@ int main(int argc, char *argv[])
             depth[i] = FLT_MAX;
         }
         
-        for (int k = 0; k < scene.objects[0].instance_count; k++)
-        {
-            float ox = (k - 1) * .9f;
-            scene.objects[0].instances[k] = trs_m4x4(now + k * .7f, Y, make_v3(ox, 0.f, 0.f), .4f);
-        }
-        if (scene.obj_count > 1)
-        {
-            for (int k = 0; k < scene.objects[1].instance_count; k++)
-            {
-                float ox = (k - 1) * .9f;
-                scene.objects[1].instances[k] = trs_m4x4(-now + k * .9f, Y, make_v3(ox, 0.f, 1.f), .4f);
-            }
-        }
+        // for (int k = 0; k < scene.objects[0].instance_count; k++)
+        // {
+        //     float ox = (k - 1) * .9f;
+        //     scene.objects[0].instances[k] = trs_m4x4(now + k * .7f, Y, make_v3(ox, 0.f, 0.f), .4f);
+        // }
+        // for (int k = 0; k < scene.objects[1].instance_count; k++)
+        // {
+        //     float ox = (k - 1) * .9f;
+        //     scene.objects[1].instances[k] = trs_m4x4(-now + k * .9f, Y, make_v3(ox, 0.f, 1.f), .4f);
+        // }
+        // for (int k = 0; k < scene.objects[2].instance_count; k++)
+        // {
+        //     float ox = (k - 1) * .9f;
+        //     scene.objects[2].instances[k] = trs_m4x4(-now + k * .9f, Y, make_v3(ox, 0.f, 2.f), 1.f);
+        // }
+
         
+        terrain_draw(pixels, depth, render_width, render_height, &terrain, camera_pos, &uni, &tex_grass, &tex_rock);
         scene_draw(
             pixels, depth, render_width, render_height,
             &scene, &uni,
             scratch_clip, scratch_norm
         );
+        if (ray_skybox)
+            draw_skybox_ray(pixels, depth, render_width, render_height, &cubemap, &uni);
+        else
+            draw_skybox_geom(pixels, depth, render_width, render_height, &cubemap, &uni, camera_pos);
 
         // nearest(out_pixels, fb_width, fb_height, pixels, render_width, render_height);
         // bilinear(out_pixels, fb_width, fb_height, pixels, render_width, render_height);
         // whole(out_pixels, fb_width, pixels, render_width, render_height);
+        // memcpy(out_pixels, pixels, out_pixel_count << 2);
+
+        if (upscale_mode == UPSCALE_NEAREST)
+            nearest(out_pixels, fb_width, fb_height, pixels, render_width, render_height);
+        else if (upscale_mode == UPSCALE_WHOLE)
+            whole(out_pixels, fb_width, pixels, render_width, render_height);
+        else if (upscale_mode == UPSCALE_BILINEAR)
+            bilinear(out_pixels, fb_width, fb_height, pixels, render_width, render_height);
+        else
+            memcpy(out_pixels, pixels, out_pixel_count << 2);
 
         gamma_correct(out_pixels, out_pixel_count);
         
@@ -235,16 +345,20 @@ int main(int argc, char *argv[])
     }
     
     free(pixels);
+    free(out_pixels);
     glfwDestroyWindow(window);
     glfwTerminate();
     for (int i = 0; i < scene.obj_count; i++)
     free(scene.objects[i].instances);
     free(scratch_clip);
     free(scratch_norm);
-    free_mesh(model1);
-    free_mesh(model2);
-    free(tex1.pixels);
-    free(tex2.pixels);
+    mesh_free(model1);
+    mesh_free(model2);
+    texture_free(&tex_porc);
+    texture_free(&tex_grass);
+    texture_free(&tex_rock);
+    cubemap_free(&cubemap);
+    terrain_free(&terrain);
     return 0;
 }
     

@@ -1,11 +1,7 @@
 #ifndef TEXTURE_H
 #define TEXTURE_H
 
-// typedef struct texture
-// {
-//     float *pixels;
-//     int w, h;
-// } Texture;
+struct vec3;
 
 typedef struct texture
 {
@@ -15,7 +11,10 @@ typedef struct texture
 } Texture;
 
 Texture texture_load(const char *path, float gamma);
-Texture texture_from_pixels(const float *pixels, int w, int h);
+Texture texture_from_pixels(float *pixels, int w, int h);
 void texture_free(Texture *t);
+
+struct vec3 texture_sample_bilinear_level(const Texture *t, int level, float u, float v);
+struct vec3 texture_sample_trilinear(const Texture *t, float u, float v, float lod);
 
 #endif

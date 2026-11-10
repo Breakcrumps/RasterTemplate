@@ -18,7 +18,7 @@ typedef struct mesh
     int vert_count, tri_count;
 } Mesh;
 
-static inline void free_mesh(Mesh m)
+static inline void mesh_free(Mesh m)
 {
     free(m.verts);
     free(m.normals);

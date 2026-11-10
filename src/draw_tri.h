@@ -18,8 +18,8 @@ void draw_tri(
 void draw_tri_tex(
     uint8_t *pixels, float *depth, int width, int height,
     struct vertex v1, struct vertex v2, struct vertex v3,
-    struct vec3 albedo, struct vec3 L_clip,
-    struct texture tex, int cull_backfaces
+    struct vec3 albedo, const struct uniforms *uni,
+    const struct texture *tex
 );
 
 #endif

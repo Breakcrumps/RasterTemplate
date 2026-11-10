@@ -38,10 +38,7 @@ void draw_obj(
                 : make_v3(0.f, 0.f, 1.f);
         }
 
-        Texture tex = {
-            .pixels = mesh->tcs ? obj->tex.pixels : NULL,
-            .w = obj->tex.w, .h = obj->tex.h
-        };
+        const Texture *tex = mesh->tcs ? &obj->tex : NULL;
 
         for (int t = 0; t < mesh->tri_count; t++)
         {
@@ -76,8 +73,8 @@ void draw_obj(
 
                 draw_tri_tex(
                     pixels, depth, fb_width, fb_height,
-                    v1, v2, v3, obj->fallback_albedo, uni->l_clip,
-                    tex, uni->cull_backfaces
+                    v1, v2, v3, obj->fallback_albedo,
+                    uni, tex
                 );
             }
         }
