@@ -99,7 +99,7 @@ static float terrain_sample_height(const Terrain *t, float wx, float wz)
             + h01 * (1 - fx) * fz + h11 * fx * fz;
     return h * t->height_scale;
 }
-float terrain_main_loop_sample(const Terrain *t, float wx, float wz)
+float terrain_surface_height(const Terrain *t, float wx, float wz)
 {
     float step = t->step;
     float half = (t->grid_n >> 1) * step;

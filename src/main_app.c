@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
         for (int k = 0; k < scene.objects[o].instance_count; k++)
         {
             float ox = (k - 1) * layout[o].dx_step;
-            float oy = terrain_main_loop_sample(&terrain, ox, layout[o].z) + layout[o].y_bonus;
+            float oy = terrain_surface_height(&terrain, ox, layout[o].z) + layout[o].y_bonus;
             scene.objects[o].instances[k] = trs_m4x4(
                 k * layout[o].a_step, Y,
                 make_v3(ox, oy, layout[o].z),
@@ -238,7 +238,7 @@ int main(int argc, char *argv[])
         camera_pos = add3(camera_pos, scaled3(normalized3(moveDir), speed * dt));
 
         if (ground_cam)
-            camera_pos.y = terrain_main_loop_sample(&terrain, camera_pos.x, camera_pos.z) + eye_height;
+            camera_pos.y = terrain_surface_height(&terrain, camera_pos.x, camera_pos.z) + eye_height;
         
         Mat4x4 view = look_at_m4x4(
             camera_pos,
